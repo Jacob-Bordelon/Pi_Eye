@@ -81,7 +81,7 @@ WIDTH = 800
 HEIGHT=600
 
 window = Tk()
-window.title("Camera")
+window.title("Pi_Eye")
 
 c = Camera(window)
 c.show_frame()
