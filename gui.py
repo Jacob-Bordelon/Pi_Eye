@@ -3,24 +3,26 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 from time import time
+from random import choice
 
 # The screen is the class im expecting to change the most
 # It is currently using the cv2 library to pull screenshots from 
 # a laptops built in camera. Since the pi doesnt have that, changes will probably be made
 # It then uses Pillow to contruct, resize, and display a constant feed to the screen
 # The Image and imagetk are used to fit it in the Tkinter window
+
+
 class Screen:
     def __init__(self,frame=None):
         self.frame = frame
-       
         self.lmain = Label(self.frame)
         self.lmain.grid(row=(self.frame.grid_info()["row"]), column=(self.frame.grid_info()['column']))
-
         self.cap = cv2.VideoCapture(0)
-
         self.show_frame()
 
-    def show_frame(self):
+
+    def show_frame(self):    
+        print self.check()
         _, frame = self.cap.read()
         frame = cv2.flip(frame, 1)
         cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
@@ -29,13 +31,19 @@ class Screen:
         imgtk = ImageTk.PhotoImage(image=img)
         self.lmain.imgtk = imgtk
         self.lmain.configure(image=imgtk)
-        self.lmain.after(10, self.show_frame) 
-
+        self.lmain.after(10, self.show_frame)
+        
     def resize(self,cv_img):
         r = ((self.frame["height"]*1.0)+200)/cv_img.shape[1]
         dim = (WIDTH/2, int(cv_img.shape[0] * r))
         resized = cv2.resize(cv_img, dim, interpolation = cv2.INTER_AREA)
         return resized
+
+    def check(self):
+        c = [True,False]
+        return choice(c)
+
+    
 
 # This class makes the buttons for the camera
 # intended on the buttons being able to toggle the 
@@ -48,19 +56,36 @@ class Screen:
 class Buttons:
     def __init__(self,frame):
         self.frame = frame
+        self.canvas = Canvas(frame, width = 10, height = 10, background = "white")
+        self.canvas.place(relx = .32, rely=.02, anchor = N)
+        square = self.canvas.create_rectangle(0,0,10,10,outline="red",fill="red")
         self.make_buttons()
-        
+         
 
     def make_buttons(self):
-        self.button1 = Button(self.frame, text='Button1',width = 20, command=self.click)       
-        self.button1.grid(row = 0, column = 0)
+        self.button1 = Button(self.frame, text='Center',width = 10, command=self.click)       
+        self.button1.place(relx = .5, rely = .5, anchor = CENTER)
 
-        self.button2 = Button(self.frame, text='Button2', width = 20,command=self.click)       
-        self.button2.grid(row = 1, column = 0)
+        self.button2 = Button(self.frame, text='Button2', width = 10,command=self.click)       
+        self.button2.place(relx = .5, rely = .25, anchor = CENTER)
+
+        self.button3 = Button(self.frame, text='Button3', width = 10,command=self.click)       
+        self.button3.place(relx = .5, rely = .75, anchor = CENTER)
+
+        self.button4 = Button(self.frame, text='Turn Left', width = 10,command=self.click)       
+        self.button4.place(relx = .15, rely = .5, anchor = CENTER)
+
+        self.button5 = Button(self.frame, text='Turn Right', width = 10,command=self.click)       
+        self.button5.place(relx = .85, rely = .5, anchor = CENTER)
+
+        self.button6 = Button(self.frame, text='On/Off', width = 10,command=self.on_off)       
+        self.button6.place(relx = .15, rely = .05, anchor = CENTER)
+
+    def on_off(self):
+        print "on"
 
     def click(self):
-        print "Clicked"
-
+        print "clicked"
 
 # This class makes a joystick that will be used 
 # to control the motor on the camera
@@ -122,6 +147,7 @@ class Joystick:
 
     
 
+
     
            
 #####################################################################
@@ -137,17 +163,23 @@ frame1.grid(row=0, column=0, sticky="NS")
 frame1.grid_propagate(0)
 Screen(frame1)
 
+
 #Frame for the buttons
 frame2=Frame(master, width=WIDTH/2, height=HEIGHT/2, background="white")
 frame2.grid(row=0, column=1, sticky="NE")
 frame2.grid_propagate(0)
 Buttons(frame2)
 
+
 #Frame for the joystick
 frame3=Frame(master, width=WIDTH/2, height=HEIGHT/2, background="red")
 frame3.grid(row=0, column=1, sticky="SE")
 frame3.grid_propagate(0)
 Joystick(frame3)
+
+
+
+
 
 
 
