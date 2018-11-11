@@ -1,18 +1,34 @@
+#################################################################
+#  Jacob Bordelon, Cody Holland, Brenden Mayhall
+#  11/12/2018
+#  Description: A wireless camera that works from the raspberry pi
+#  through VNC
+#################################################################
+
+
+
+
 from Tkinter import*
-"""import cv2
+import cv2
 import numpy as np
-from PIL import Image, ImageTk"""
+from PIL import Image
+from PIL import ImageTk
 from time import time, sleep
 from random import choice
 import RPi.GPIO as GPIO
 
+##########################################################
+# Connect servo to BOARD 22
+# Connect PIR motion sensor to BOARD 40
+# Positive wire to BOARD 2
+# Negative wire to BOARD 4
+##########################################################
 
 # The screen is the class im expecting to change the most
 # It is currently using the cv2 library to pull screenshots from 
 # a laptops built in camera. Since the pi doesnt have that, changes will probably be made
 # It then uses Pillow to contruct, resize, and display a constant feed to the screen
 # The Image and imagetk are used to fit it in the Tkinter window
-
 
 
 
@@ -26,8 +42,7 @@ class Screen:
 
 
     def show_frame(self):    
-        print self.check()
-        _, frame = self.cap.read()
+        _, frame = self.cap.read(0)
         frame = cv2.flip(frame, 1)
         cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         resized = self.resize(cv2image)
@@ -35,7 +50,7 @@ class Screen:
         imgtk = ImageTk.PhotoImage(image=img)
         self.lmain.imgtk = imgtk
         self.lmain.configure(image=imgtk)
-        self.lmain.after(10, self.show_frame)
+        self.lmain.after(5, self.show_frame)
         
     def resize(self,cv_img):
         r = ((self.frame["height"]*1.0)+200)/cv_img.shape[1]
@@ -43,10 +58,7 @@ class Screen:
         resized = cv2.resize(cv_img, dim, interpolation = cv2.INTER_AREA)
         return resized
 
-    def check(self):
-        c = [True,False]
-        return choice(c)
-
+    
     
 
 # This class makes the buttons for the camera
@@ -64,23 +76,26 @@ class Buttons:
         self.canvas.place(relx = .32, rely=.02, anchor = N)
         self.square = self.canvas.create_rectangle(0,0,10,10,outline="red",fill="red")
         self.make_buttons()
-        self.state = False
+        self.state =False
+
+        
+        
         
 
     def make_buttons(self):
         self.button1 = Button(self.frame, text='Center',width = 10, command=self.click)       
-        self.button1.place(relx = .5, rely = .5, anchor = CENTER)
+        self.button1.place(relx = .5, rely = .25, anchor = CENTER)
 
         self.button2 = Button(self.frame, text='Quit', width = 10,command=self.quit_x)       
-        self.button2.place(relx = .5, rely = .25, anchor = CENTER)
+        self.button2.place(relx = .85, rely = .05, anchor = CENTER)
 
         self.button3 = Button(self.frame, text='Button3', width = 10,command=self.click)       
         self.button3.place(relx = .5, rely = .75, anchor = CENTER)
 
-        self.button4 = Button(self.frame, text='Turn Left', width = 10,command=self.click)       
+        self.button4 = Button(self.frame, text='Turn Left', width = 10,command=lambda: self.Turn("Left"))       
         self.button4.place(relx = .15, rely = .5, anchor = CENTER)
 
-        self.button5 = Button(self.frame, text='Turn Right', width = 10,command=self.click)       
+        self.button5 = Button(self.frame, text='Turn Right', width = 10,command=self.Turn)       
         self.button5.place(relx = .85, rely = .5, anchor = CENTER)
 
         self.button6 = Button(self.frame, text='On/Off', width = 10,command=self.on_off)       
@@ -89,17 +104,30 @@ class Buttons:
     def on_off(self):
         if(self.state == False):
             self.state = True
+            #s.start()
             self.canvas.itemconfig(self.square,fill="green",outline="green")
         else:
             self.state = False
+            #s.stop()
             self.canvas.itemconfig(self.square,fill="red",outline="red")
 
     def click(self):
         print "clicked"
 
+    def Turn(self, direct="Right"):
+        if(direct == "Left"):
+            j.f['x']=30
+        else:
+            j.f['x']=300
+        j.motor(1)
+        sleep(0.7)
+        j.motor(0)
+
     def quit_x(self):
         global master
+        #s.stop()
         master.destroy()
+        
 
 # This class makes a joystick that will be used 
 # to control the motor on the camera
@@ -107,12 +135,16 @@ class Buttons:
 # I uses its x and y event corrdinates to give a general location
 class Joystick:
     def __init__(self,frame):
-        GPIO.cleanup() 
-        self.servo = 18
-        GPIO.setmode(GPIO.BCM)
+        self.servo = 22
+        self.sensor = 40
+        GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.servo, GPIO.OUT)
+        GPIO.setup(self.sensor,GPIO.IN)
+        GPIO.add_event_detect(self.sensor,GPIO.BOTH,callback= self.change,bouncetime=150)
         self.p = GPIO.PWM(self.servo,50)
         self.p.start(2.5)
+        
+        
         self.frame = frame
         self.f = {'x':int(self.frame['width']/2), 'y':int(self.frame['height']/2)}
         self.build()
@@ -133,50 +165,54 @@ class Joystick:
         self.oval = self.canvas.create_oval(0, 0, 0, 0, fill = 'red')
         self.canvas.pack()
 
-        self.canvas.bind('<Button-1>', self.move)
+        self.canvas.bind('<B1-Motion>', self.check)
         self.canvas.bind('<ButtonRelease-1>',self.center)
 
 
     def draw(self,x,y):
         self.canvas.coords(self.oval, x-50, y-50, x+50, y+50)
-        
+
+    def change(self,a):
+        if GPIO.input(self.sensor):
+            self.canvas['bg']="darkred"
+        else:
+            self.canvas['bg']="lightgray"
+            
     
 
     def center(self,u):
         self.draw(self.x/2,self.y/2)
         self.motor(0)
-        
-        
 
-    def move(self,event):
+    def check(self,event):
         x = event.x
         y = event.y
 
+        if(x+50>self.x):
+            x=self.x-50
+        if(x-50<0):
+            x=50
         
-        if((x<(self.x/2) or x>(self.x/2)) and ((self.y/2)-25<y<(self.y/2)+25)):
-            self.draw(event.x, self.y/2)
-            self.f['x'] = event.x
-            self.f['y'] = self.y/2
-            self.motor(1)
+        
+        self.draw(x,self.y/2)
+        self.f['x'] = x
+        self.motor(1)
+        
+        
             
-        
-        if((y<(self.y/2) or y>(self.y/2)) and ((self.x/2)-25<x<(self.x/2)+25)):
-            self.draw(self.x/2, event.y)
-            self.f['x'] = self.x/2
-            self.f['y'] = event.y
-            self.motor(1)
             
         
         
     def motor(self,c):
         if(c != 0):
             if(self.f['x'] >self.x/2):
-                self.p.ChangeDutyCycle(6.5)
+                self.p.ChangeDutyCycle(6.5)# go right 6.5
             else:
-                self.p.ChangeDutyCycle(7.5)
+                self.p.ChangeDutyCycle(7.3)# go left 7.3
+                
                 
         else:
-            self.p.ChangeDutyCycle(0)
+            self.p.ChangeDutyCycle(0)# stop
         
             
 
@@ -198,8 +234,17 @@ master.attributes("-fullscreen",True)
 frame1=Frame(master, width=WIDTH/2, height=HEIGHT, background="blue")
 frame1.grid(row=0, column=0, sticky="NS")
 frame1.grid_propagate(0)
-#Screen(frame1)
+s=Screen(frame1)
 
+print 'Camera Setup: Good'
+
+#Frame for the joystick
+frame3=Frame(master, width=WIDTH/2, height=HEIGHT/2, background="red")
+frame3.grid(row=0, column=1, sticky="SE")
+frame3.grid_propagate(0)
+j=Joystick(frame3)
+
+print "Joystick Setup: Good"
 
 #Frame for the buttons
 frame2=Frame(master, width=WIDTH/2, height=HEIGHT/2, background="white")
@@ -207,14 +252,11 @@ frame2.grid(row=0, column=1, sticky="NE")
 frame2.grid_propagate(0)
 Buttons(frame2)
 
+print "Buttons Setup: Good"
 
-#Frame for the joystick
-frame3=Frame(master, width=WIDTH/2, height=HEIGHT/2, background="red")
-frame3.grid(row=0, column=1, sticky="SE")
-frame3.grid_propagate(0)
-Joystick(frame3)
-
-
+print "Starting..."
+sleep(3)
 
 
 master.mainloop()
+GPIO.cleanup()
