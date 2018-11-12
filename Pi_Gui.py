@@ -21,7 +21,8 @@ import RPi.GPIO as GPIO
 # Connect servo to BOARD 22
 # Connect PIR motion sensor to BOARD 40
 # Positive wire to BOARD 2
-# Negative wire to BOARD 4
+# Negative wire to BOARD 6
+# Need USB camera (raspbian camera module will not work)
 ##########################################################
 
 # The screen is the class im expecting to change the most
